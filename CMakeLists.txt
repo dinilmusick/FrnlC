@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.16)
+project(FrnlC LANGUAGES C)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+add_library(frnl_event_dispatch STATIC src/frnl_event_dispatch.c)
+target_include_directories(frnl_event_dispatch PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+include(CTest)
+if(BUILD_TESTING)
+  add_executable(frnl_event_dispatch_test tests/test_event_dispatch.c)
+  target_link_libraries(frnl_event_dispatch_test PRIVATE frnl_event_dispatch)
+  add_test(NAME frnl_event_dispatch COMMAND frnl_event_dispatch_test)
+endif
