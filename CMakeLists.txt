@@ -9,4 +9,4 @@ if(BUILD_TESTING)
   add_executable(frnl_event_dispatch_test tests/test_event_dispatch.c)
   target_link_libraries(frnl_event_dispatch_test PRIVATE frnl_event_dispatch)
   add_test(NAME frnl_event_dispatch COMMAND frnl_event_dispatch_test)
-endif
+endif()
