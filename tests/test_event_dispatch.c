@@ -1,6 +1,7 @@
 #include "frnl_event_dispatch.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"CHECK failed: %s at %s:%d\n",#x,__FILE__,__LINE__); exit(1); } } while(0)
 static int calls, notifications, fail, replacement_calls, late_notifications;
 static frnl_event_dispatcher *active;
@@ -14,7 +15,33 @@ static int mutating_handler(const void *p,void *ctx) {
   active->listener=late_listener;
   return 0;
 }
+
+/* Nested dispatch must not replace the outer dispatch listener snapshot. */
+static int nested_calls, outer_notifications, nested_notifications;
+static int nested_handler(const void *p, void *ctx) {
+  frnl_event_dispatcher *d=(frnl_event_dispatcher *)ctx;
+  nested_calls++;
+  return frnl_event_invoke(d,"inner","ready","fire",p)!=FRNL_EVENT_OK;
+}
+static int inner_handler(const void *p, void *ctx) { (void)p;(void)ctx;return 0; }
+static void nested_listener(const char *c,const char *e,const void *p,void *ctx) {
+  (void)e;(void)p;(void)ctx;
+  if (strcmp(c,"inner")==0) nested_notifications++;
+  else if (strcmp(c,"outer")==0) outer_notifications++;
+}
+static void test_nested_dispatch(void) {
+  frnl_event_binding events[2]={{"outer","ready","fire","run"},{"inner","ready","fire","run"}};
+  frnl_handler_binding handlers[2];
+  frnl_event_dispatcher d={events,2,2,handlers,2,2,nested_listener,0};
+  int payload=1;
+  handlers[0]=(frnl_handler_binding){"outer","run",nested_handler,&d};
+  handlers[1]=(frnl_handler_binding){"inner","run",inner_handler,0};
+  CHECK(frnl_event_invoke(&d,"outer","ready","fire",&payload)==FRNL_EVENT_OK);
+  CHECK(nested_calls==1 && outer_notifications==1 && nested_notifications==1);
+}
+
 int main(void) {
+  test_nested_dispatch();
   frnl_event_binding events[2];
   frnl_handler_binding handlers[2];
   frnl_event_dispatcher d={events,0,2,handlers,0,2,listener,0};
