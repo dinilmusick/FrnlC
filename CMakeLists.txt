@@ -18,4 +18,17 @@ if(BUILD_TESTING)
   add_executable(frnl_handler_registry_mutation_test tests/test_handler_registry_mutation.c)
   target_link_libraries(frnl_handler_registry_mutation_test PRIVATE frnl_event_dispatch)
   add_test(NAME frnl_handler_registry_mutation COMMAND frnl_handler_registry_mutation_test)
+  # Release builds define NDEBUG, which otherwise turns assert()-based tests
+  # into no-ops. Keep assertions enabled in every CTest executable.
+  foreach(test_target IN ITEMS
+      frnl_event_dispatch_test
+      frnl_multi_event_dispatch_test
+      frnl_nested_failure_recovery_test
+      frnl_handler_registry_mutation_test)
+    if(MSVC)
+      target_compile_options(${test_target} PRIVATE /UNDEBUG)
+    else()
+      target_compile_options(${test_target} PRIVATE -UNDEBUG)
+    endif()
+  endforeach()
 endif()
