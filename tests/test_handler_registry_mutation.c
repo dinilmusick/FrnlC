@@ -32,5 +32,32 @@ int main(void) {
   CHECK(frnl_event_invoke(&dispatcher,"panel","ready","click",0) == FRNL_EVENT_OK);
   CHECK(first_calls == 1 && second_calls == 1);
   CHECK(original_notices == 1 && changed_notices == 1);
+  /* A malformed later entry must prevent any callback or listener side
+     effect, even if an earlier binding already matches the request. */
+  {
+    frnl_event_binding all_events[2] = {
+      {"panel","ready","click","run"},
+      {"panel","ready","hover",0}
+    };
+    frnl_handler_binding all_handlers[2] = {
+      {"panel","run",replacement,0},
+      {"panel","other",replacement,0}
+    };
+    frnl_event_dispatcher strict = {
+      all_events,2,2,all_handlers,2,2,original_listener,0
+    };
+    CHECK(frnl_event_invoke(&strict,"panel","ready","click",0) ==
+          FRNL_EVENT_INVALID_ARGUMENT);
+    CHECK(second_calls == 1 && original_notices == 1);
+    all_events[1].function_id = "other";
+    all_handlers[1].callback = 0;
+    CHECK(frnl_event_invoke(&strict,"panel","ready","click",0) ==
+          FRNL_EVENT_INVALID_ARGUMENT);
+    CHECK(second_calls == 1 && original_notices == 1);
+    all_handlers[1].callback = replacement;
+    CHECK(frnl_event_invoke(&strict,"panel","ready","click",0) ==
+          FRNL_EVENT_OK);
+    CHECK(second_calls == 2 && original_notices == 2);
+  }
   return 0;
 }
