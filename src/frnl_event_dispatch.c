@@ -24,6 +24,16 @@ frnl_event_status frnl_event_invoke(frnl_event_dispatcher *d, const char *compon
   size_t i,j;
   int component_found=0, state_found=0;
   if (!d || !valid(component) || !valid(state) || !valid(event) || (d->event_count && !d->events) || (d->handler_count && !d->handlers) || d->event_count>d->event_capacity || d->handler_count>d->handler_capacity) return FRNL_EVENT_INVALID_ARGUMENT;
+  /* Fail closed before invoking user callbacks: a malformed entry anywhere
+     in the registry must not be hidden behind an earlier matching entry. */
+  for (i=0;i<d->event_count;i++) {
+    const frnl_event_binding b=d->events[i];
+    if (!valid(b.component) || !valid(b.state) || !valid(b.event) || !valid(b.function_id)) return FRNL_EVENT_INVALID_ARGUMENT;
+  }
+  for (j=0;j<d->handler_count;j++) {
+    const frnl_handler_binding h=d->handlers[j];
+    if (!valid(h.component) || !valid(h.function_id) || !h.callback) return FRNL_EVENT_INVALID_ARGUMENT;
+  }
   for (i=0;i<d->event_count;i++) {
     const frnl_event_binding b=d->events[i];
     if (!valid(b.component) || !valid(b.state) || !valid(b.event) || !valid(b.function_id)) return FRNL_EVENT_INVALID_ARGUMENT;
