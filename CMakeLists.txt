@@ -24,6 +24,9 @@ if(BUILD_TESTING)
   add_executable(frnl_ui_action_gate_test tests/test_ui_action_gate.c)
   target_include_directories(frnl_ui_action_gate_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
   add_test(NAME frnl_ui_action_gate COMMAND frnl_ui_action_gate_test)
+  add_executable(frnl_ui_action_executor_test tests/test_ui_action_executor.c)
+  target_include_directories(frnl_ui_action_executor_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  add_test(NAME frnl_ui_action_executor COMMAND frnl_ui_action_executor_test)
   # Release builds define NDEBUG, which otherwise turns assert()-based tests
   # into no-ops. Keep assertions enabled in every CTest executable.
   foreach(test_target IN ITEMS
@@ -32,7 +35,8 @@ if(BUILD_TESTING)
       frnl_nested_failure_recovery_test
       frnl_handler_registry_mutation_test
       frnl_registry_lifecycle_test
-      frnl_ui_action_gate_test)
+      frnl_ui_action_gate_test
+      frnl_ui_action_executor_test)
     if(MSVC)
       target_compile_options(${test_target} PRIVATE /UNDEBUG)
     else()
