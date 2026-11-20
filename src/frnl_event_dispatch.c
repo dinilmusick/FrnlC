@@ -66,3 +66,56 @@ frnl_event_status frnl_event_invoke(frnl_event_dispatcher *d, const char *compon
   if (!component_found) return FRNL_EVENT_UNKNOWN_COMPONENT;
   return state_found ? FRNL_EVENT_UNKNOWN_EVENT : FRNL_EVENT_UNKNOWN_STATE;
 }
+
+/* Remove one exact event binding, retaining the order of other entries.
+   No callbacks are executed during removal. */
+frnl_event_status frnl_event_unregister(frnl_event_dispatcher *d,
+    const char *component, const char *state, const char *event) {
+  size_t i, j;
+  if (!d || !valid(component) || !valid(state) || !valid(event) ||
+      (d->event_count && !d->events) || d->event_count > d->event_capacity)
+    return FRNL_EVENT_INVALID_ARGUMENT;
+  for (i = 0; i < d->event_count; ++i) {
+    const frnl_event_binding b = d->events[i];
+    if (!valid(b.component) || !valid(b.state) || !valid(b.event) ||
+        !valid(b.function_id)) return FRNL_EVENT_INVALID_ARGUMENT;
+  }
+  for (i = 0; i < d->event_count; ++i) {
+    const frnl_event_binding b = d->events[i];
+    if (same(b.component, component) && same(b.state, state) &&
+        same(b.event, event)) {
+      for (j = i + 1; j < d->event_count; ++j) d->events[j - 1] = d->events[j];
+      --d->event_count;
+      memset(&d->events[d->event_count], 0, sizeof(d->events[0]));
+      return FRNL_EVENT_OK;
+    }
+  }
+  return FRNL_EVENT_UNKNOWN_EVENT;
+}
+
+/* Remove one exact handler binding. Existing event mappings intentionally
+   remain and will report MISSING_HANDLER until another handler is registered. */
+frnl_event_status frnl_handler_unregister(frnl_event_dispatcher *d,
+    const char *component, const char *function_id) {
+  size_t i, j;
+  if (!d || !valid(component) || !valid(function_id) ||
+      (d->handler_count && !d->handlers) ||
+      d->handler_count > d->handler_capacity)
+    return FRNL_EVENT_INVALID_ARGUMENT;
+  for (i = 0; i < d->handler_count; ++i) {
+    const frnl_handler_binding h = d->handlers[i];
+    if (!valid(h.component) || !valid(h.function_id) || !h.callback)
+      return FRNL_EVENT_INVALID_ARGUMENT;
+  }
+  for (i = 0; i < d->handler_count; ++i) {
+    const frnl_handler_binding h = d->handlers[i];
+    if (same(h.component, component) && same(h.function_id, function_id)) {
+      for (j = i + 1; j < d->handler_count; ++j)
+        d->handlers[j - 1] = d->handlers[j];
+      --d->handler_count;
+      memset(&d->handlers[d->handler_count], 0, sizeof(d->handlers[0]));
+      return FRNL_EVENT_OK;
+    }
+  }
+  return FRNL_EVENT_MISSING_HANDLER;
+}
