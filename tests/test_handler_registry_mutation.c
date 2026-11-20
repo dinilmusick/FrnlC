@@ -59,5 +59,19 @@ int main(void) {
           FRNL_EVENT_OK);
     CHECK(second_calls == 2 && original_notices == 2);
   }
+  /* Registration must reject corrupt pre-existing entries before strcmp or mutation. */
+  {
+    frnl_event_binding ev[2] = {{0,"ready","click","run"},{0}};
+    frnl_handler_binding hs[2] = {{0,"run",replacement,0},{0}};
+    frnl_event_dispatcher invalid = {ev,1,2,hs,1,2,0,0};
+    CHECK(frnl_event_register(&invalid,(frnl_event_binding){"panel","ready","click","run"}) == FRNL_EVENT_INVALID_ARGUMENT);
+    CHECK(invalid.event_count == 1);
+    CHECK(frnl_handler_register(&invalid,(frnl_handler_binding){"panel","run",replacement,0}) == FRNL_EVENT_INVALID_ARGUMENT);
+    CHECK(invalid.handler_count == 1);
+    ev[0] = (frnl_event_binding){"panel","ready","click","run"};
+    hs[0] = (frnl_handler_binding){"panel","run",replacement,0};
+    CHECK(frnl_event_register(&invalid,(frnl_event_binding){"panel","ready","hover","run"}) == FRNL_EVENT_OK);
+    CHECK(frnl_handler_register(&invalid,(frnl_handler_binding){"panel","other",replacement,0}) == FRNL_EVENT_OK);
+  }
   return 0;
 }
