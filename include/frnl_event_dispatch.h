@@ -36,6 +36,10 @@ typedef struct {
 frnl_event_status frnl_event_register(frnl_event_dispatcher *dispatcher, frnl_event_binding binding);
 frnl_event_status frnl_handler_register(frnl_event_dispatcher *dispatcher, frnl_handler_binding binding);
 frnl_event_status frnl_event_invoke(frnl_event_dispatcher *dispatcher, const char *component, const char *state, const char *event, const void *payload);
+/* Registry lifecycle operations: remove exact bindings without callbacks.
+   All remaining entries are validated before mutation. */
+frnl_event_status frnl_event_unregister(frnl_event_dispatcher *dispatcher, const char *component, const char *state, const char *event);
+frnl_event_status frnl_handler_unregister(frnl_event_dispatcher *dispatcher, const char *component, const char *function_id);
 #ifdef __cplusplus
 }
 #endif
