@@ -46,5 +46,28 @@ int main(void) {
     CHECK(frnl_handler_unregister(&bad,"panel","run") == FRNL_EVENT_INVALID_ARGUMENT);
     CHECK(bad.handler_count == 2);
   }
+  /* Caller-owned registry arrays may be corrupted after registration.
+     Duplicate keys must not silently choose the first callback. */
+  {
+    frnl_event_binding duplicate_events[2] = {
+      {"panel","ready","click","run"}, {"panel","ready","click","other"}
+    };
+    frnl_handler_binding unique_handlers[2] = {
+      {"panel","run",handler,0}, {"panel","other",handler,0}
+    };
+    frnl_event_dispatcher ambiguous = {
+      duplicate_events,2,2,unique_handlers,2,2,0,0
+    };
+    int before = calls;
+    CHECK(frnl_event_invoke(&ambiguous,"panel","ready","click",0) == FRNL_EVENT_DUPLICATE);
+    CHECK(calls == before);
+    duplicate_events[1].event = "focus";
+    unique_handlers[1].function_id = "run";
+    CHECK(frnl_event_invoke(&ambiguous,"panel","ready","click",0) == FRNL_EVENT_DUPLICATE);
+    CHECK(calls == before);
+    unique_handlers[1].function_id = "other";
+    CHECK(frnl_event_invoke(&ambiguous,"panel","ready","click",0) == FRNL_EVENT_OK);
+    CHECK(calls == before + 1);
+  }
   return 0;
 }
