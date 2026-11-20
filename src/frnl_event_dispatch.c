@@ -34,11 +34,23 @@ frnl_event_status frnl_event_invoke(frnl_event_dispatcher *d, const char *compon
      in the registry must not be hidden behind an earlier matching entry. */
   for (i=0;i<d->event_count;i++) {
     const frnl_event_binding b=d->events[i];
+    size_t k;
     if (!valid(b.component) || !valid(b.state) || !valid(b.event) || !valid(b.function_id)) return FRNL_EVENT_INVALID_ARGUMENT;
+    /* Caller-owned arrays can be modified outside registration. Reject
+       ambiguous event mappings before invoking any application callback. */
+    for (k=0;k<i;k++) {
+      const frnl_event_binding prior=d->events[k];
+      if (same(prior.component,b.component) && same(prior.state,b.state) && same(prior.event,b.event)) return FRNL_EVENT_DUPLICATE;
+    }
   }
   for (j=0;j<d->handler_count;j++) {
     const frnl_handler_binding h=d->handlers[j];
+    size_t k;
     if (!valid(h.component) || !valid(h.function_id) || !h.callback) return FRNL_EVENT_INVALID_ARGUMENT;
+    for (k=0;k<j;k++) {
+      const frnl_handler_binding prior=d->handlers[k];
+      if (same(prior.component,h.component) && same(prior.function_id,h.function_id)) return FRNL_EVENT_DUPLICATE;
+    }
   }
   for (i=0;i<d->event_count;i++) {
     const frnl_event_binding b=d->events[i];
