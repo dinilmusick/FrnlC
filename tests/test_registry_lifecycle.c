@@ -88,5 +88,23 @@ int main(void) {
     CHECK(frnl_event_register(&ambiguous,(frnl_event_binding){"panel","ready","focus","run"}) == FRNL_EVENT_OK);
     CHECK(frnl_handler_register(&ambiguous,(frnl_handler_binding){"panel","third",handler,0}) == FRNL_EVENT_OK);
   }
+  /* Removal must not partially modify a caller-mutated duplicate registry. */
+  {
+    frnl_event_binding ev[2] = {
+      {"panel","ready","click","run"}, {"panel","ready","click","other"}
+    };
+    frnl_handler_binding hs[2] = {
+      {"panel","run",handler,0}, {"panel","run",handler,0}
+    };
+    frnl_event_dispatcher ambiguous = {ev,2,2,hs,2,2,0,0};
+    CHECK(frnl_event_unregister(&ambiguous,"panel","ready","click") == FRNL_EVENT_DUPLICATE);
+    CHECK(ambiguous.event_count == 2 && ev[0].component && ev[1].component);
+    CHECK(frnl_handler_unregister(&ambiguous,"panel","run") == FRNL_EVENT_DUPLICATE);
+    CHECK(ambiguous.handler_count == 2 && hs[0].callback && hs[1].callback);
+    ev[1].event = "hover";
+    hs[1].function_id = "other";
+    CHECK(frnl_event_unregister(&ambiguous,"panel","ready","click") == FRNL_EVENT_OK);
+    CHECK(frnl_handler_unregister(&ambiguous,"panel","run") == FRNL_EVENT_OK);
+  }
   return 0;
 }
