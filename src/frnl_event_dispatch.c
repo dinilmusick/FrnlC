@@ -100,6 +100,16 @@ frnl_event_status frnl_event_unregister(frnl_event_dispatcher *d,
     if (!valid(b.component) || !valid(b.state) || !valid(b.event) ||
         !valid(b.function_id)) return FRNL_EVENT_INVALID_ARGUMENT;
   }
+  /* Reject ambiguous caller-mutated registries before any removal. */
+  for (i = 0; i < d->event_count; ++i) {
+    size_t k;
+    for (k = 0; k < i; ++k) {
+      if (same(d->events[k].component, d->events[i].component) &&
+          same(d->events[k].state, d->events[i].state) &&
+          same(d->events[k].event, d->events[i].event))
+        return FRNL_EVENT_DUPLICATE;
+    }
+  }
   for (i = 0; i < d->event_count; ++i) {
     const frnl_event_binding b = d->events[i];
     if (same(b.component, component) && same(b.state, state) &&
@@ -126,6 +136,14 @@ frnl_event_status frnl_handler_unregister(frnl_event_dispatcher *d,
     const frnl_handler_binding h = d->handlers[i];
     if (!valid(h.component) || !valid(h.function_id) || !h.callback)
       return FRNL_EVENT_INVALID_ARGUMENT;
+  }
+  for (i = 0; i < d->handler_count; ++i) {
+    size_t k;
+    for (k = 0; k < i; ++k) {
+      if (same(d->handlers[k].component, d->handlers[i].component) &&
+          same(d->handlers[k].function_id, d->handlers[i].function_id))
+        return FRNL_EVENT_DUPLICATE;
+    }
   }
   for (i = 0; i < d->handler_count; ++i) {
     const frnl_handler_binding h = d->handlers[i];
