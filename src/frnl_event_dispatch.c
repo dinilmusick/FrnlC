@@ -5,8 +5,11 @@ static int same(const char *a, const char *b) { return strcmp(a,b)==0; }
 frnl_event_status frnl_event_register(frnl_event_dispatcher *d, frnl_event_binding b) {
   size_t i;
   if (!d || !d->events || !valid(b.component) || !valid(b.state) || !valid(b.event) || !valid(b.function_id) || d->event_count>d->event_capacity) return FRNL_EVENT_INVALID_ARGUMENT;
-  for (i=0;i<d->event_count;i++)
+  for (i=0;i<d->event_count;i++) {
+    const frnl_event_binding existing=d->events[i];
+    if (!valid(existing.component) || !valid(existing.state) || !valid(existing.event) || !valid(existing.function_id)) return FRNL_EVENT_INVALID_ARGUMENT;
     if (same(d->events[i].component,b.component) && same(d->events[i].state,b.state) && same(d->events[i].event,b.event)) return FRNL_EVENT_DUPLICATE;
+  }
   if (d->event_count>=d->event_capacity) return FRNL_EVENT_CAPACITY;
   d->events[d->event_count++]=b;
   return FRNL_EVENT_OK;
@@ -14,8 +17,11 @@ frnl_event_status frnl_event_register(frnl_event_dispatcher *d, frnl_event_bindi
 frnl_event_status frnl_handler_register(frnl_event_dispatcher *d, frnl_handler_binding b) {
   size_t i;
   if (!d || !d->handlers || !valid(b.component) || !valid(b.function_id) || !b.callback || d->handler_count>d->handler_capacity) return FRNL_EVENT_INVALID_ARGUMENT;
-  for (i=0;i<d->handler_count;i++)
+  for (i=0;i<d->handler_count;i++) {
+    const frnl_handler_binding existing=d->handlers[i];
+    if (!valid(existing.component) || !valid(existing.function_id) || !existing.callback) return FRNL_EVENT_INVALID_ARGUMENT;
     if (same(d->handlers[i].component,b.component) && same(d->handlers[i].function_id,b.function_id)) return FRNL_EVENT_DUPLICATE;
+  }
   if (d->handler_count>=d->handler_capacity) return FRNL_EVENT_CAPACITY;
   d->handlers[d->handler_count++]=b;
   return FRNL_EVENT_OK;
