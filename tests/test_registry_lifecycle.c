@@ -69,5 +69,24 @@ int main(void) {
     CHECK(frnl_event_invoke(&ambiguous,"panel","ready","click",0) == FRNL_EVENT_OK);
     CHECK(calls == before + 1);
   }
+  /* Registration must reject preexisting ambiguous keys, even when the
+     proposed new binding itself uses a distinct key. */
+  {
+    frnl_event_binding ev[3] = {
+      {"panel","ready","click","run"}, {"panel","ready","click","other"}, {0}
+    };
+    frnl_handler_binding hs[3] = {
+      {"panel","run",handler,0}, {"panel","run",handler,0}, {0}
+    };
+    frnl_event_dispatcher ambiguous = {ev,2,3,hs,2,3,0,0};
+    CHECK(frnl_event_register(&ambiguous,(frnl_event_binding){"panel","ready","focus","run"}) == FRNL_EVENT_DUPLICATE);
+    CHECK(ambiguous.event_count == 2 && ev[2].component == 0);
+    CHECK(frnl_handler_register(&ambiguous,(frnl_handler_binding){"panel","other",handler,0}) == FRNL_EVENT_DUPLICATE);
+    CHECK(ambiguous.handler_count == 2 && hs[2].component == 0);
+    ev[1].event = "hover";
+    hs[1].function_id = "other";
+    CHECK(frnl_event_register(&ambiguous,(frnl_event_binding){"panel","ready","focus","run"}) == FRNL_EVENT_OK);
+    CHECK(frnl_handler_register(&ambiguous,(frnl_handler_binding){"panel","third",handler,0}) == FRNL_EVENT_OK);
+  }
   return 0;
 }
