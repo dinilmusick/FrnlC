@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 typedef struct {
- frnl_component components[3]; frnl_state_spec states[3]; frnl_state_edge edges[2];
+ frnl_component components[3]; frnl_state_spec states[3]; frnl_state_edge edges[2]; frnl_theme themes[2];
  frnl_visual visuals[4]; frnl_data data[3]; frnl_event_def events[3];
  frnl_function funcs[3]; frnl_subscription subs[3],snap[6];
  frnl_flow_step flows[3],flow_snap[6];
@@ -35,7 +35,7 @@ static frnl_status resolve(void *ctx,const char *contract,const char *raw,frnl_v
 static void setup(fixture *f) {
  frnl_storage s={0}; memset(f,0,sizeof(*f));
  s.components=f->components;s.component_capacity=3;s.states=f->states;s.state_capacity=3;
- s.edges=f->edges;s.edge_capacity=2;s.visuals=f->visuals;s.visual_capacity=4;
+ s.edges=f->edges;s.edge_capacity=2;s.themes=f->themes;s.theme_capacity=2;s.visuals=f->visuals;s.visual_capacity=4;
  s.data=f->data;s.data_capacity=3;s.events=f->events;s.event_capacity=3;
  s.functions=f->funcs;s.function_capacity=3;s.subscriptions=f->subs;s.subscription_capacity=3;
  s.subscription_scratch=f->snap;s.flows=f->flows;s.flow_capacity=3;s.flow_scratch=f->flow_snap;s.max_depth=2;
@@ -46,6 +46,51 @@ static void setup(fixture *f) {
  assert(frnl_add_component(&f->rt,"root",NULL,"tile","idle")==FRNL_OK);
  assert(frnl_add_component(&f->rt,"child","root","tile","idle")==FRNL_OK);
 }
+
+typedef struct { frnl_runtime *rt; uint64_t remove; int *calls; } listener_removal;
+static frnl_status remove_listener(void *ctx,const char *id,const char *event,const void *payload) {
+  listener_removal *r=ctx; (void)payload;
+  assert(strcmp(id,"child")==0 && strcmp(event,"click")==0);
+  (*r->calls)++;
+  if (r->remove) { assert(frnl_unsubscribe(r->rt,r->remove)==FRNL_OK); r->remove=0; }
+  return FRNL_OK;
+}
+static frnl_status count_listener(void *ctx,const char *id,const char *event,const void *payload) {
+  int *calls=ctx; (void)payload;
+  assert(strcmp(id,"child")==0 && strcmp(event,"click")==0);
+  ++*calls;
+  return FRNL_OK;
+}
+static frnl_status success(void *ctx,const void *input) { (void)ctx;(void)input;return FRNL_OK; }
+static void test_listener_removal_and_depth(void) {
+  fixture f;
+  int first=0,second=0;
+  uint64_t token1=0,token2=0;
+  listener_removal removal;
+  setup(&f);
+  assert(frnl_event_define(&f.rt,(frnl_event_def){"child","idle","click","func"})==FRNL_OK);
+  assert(frnl_function_add(&f.rt,(frnl_function){"child","func",success,NULL})==FRNL_OK);
+  removal=(listener_removal){&f.rt,0,&first};
+  assert(frnl_subscribe(&f.rt,"child","click",remove_listener,&removal,&token1)==FRNL_OK);
+  assert(frnl_subscribe(&f.rt,"child","click",count_listener,&second,&token2)==FRNL_OK);
+  removal.remove=token2;
+  assert(frnl_emit(&f.rt,"child","click",NULL)==FRNL_OK);
+  /* Snapshot isolation: removed subscriber still runs in this dispatch. */
+  assert(first==1 && second==1 && f.rt.subscriptions==1);
+  assert(frnl_emit(&f.rt,"child","click",NULL)==FRNL_OK);
+  assert(first==2 && second==1 && f.rt.subscriptions==1);
+  assert(frnl_unsubscribe(&f.rt,token1)==FRNL_OK);
+  frnl_cleanup(&f.rt);
+  /* Explicit exhaustion, no accidental heap allocations. */
+  { frnl_storage storage={0}; frnl_runtime tiny;
+    storage.max_depth=1;
+    assert(frnl_init(&tiny,&storage)==FRNL_OK);
+    assert(frnl_define_state(&tiny,(frnl_state_spec){"x","idle",0,0})==FRNL_CAPACITY);
+    assert(frnl_emit(&tiny,"unknown","tap",NULL)==FRNL_INVALID);
+    frnl_cleanup(&tiny); frnl_cleanup(&tiny);
+  }
+}
+
 int main(void) {
  fixture f; const char *path[3];size_t n=0; int count=0;
  frnl_value v; invoke_context ctx;uint64_t token=0;int a=1,b=2,c=3;
@@ -71,7 +116,10 @@ int main(void) {
  assert(frnl_set_state(&f.rt,"child","idle")==FRNL_BAD_TRANSITION);
  assert(frnl_advance_phase(&f.rt,"child")==FRNL_BAD_TRANSITION);
  assert(frnl_visual_put(&f.rt,(frnl_visual){FRNL_VISUAL_BASE,"tile","pressed",NULL,NULL,"color",{"black",6}})==FRNL_OK);
+ assert(frnl_set_theme(&f.rt,"child","dark")==FRNL_NOT_FOUND);
+ assert(frnl_theme_define(&f.rt,"dark")==FRNL_OK);
  assert(frnl_visual_put(&f.rt,(frnl_visual){FRNL_VISUAL_THEME,"tile","pressed","dark",NULL,"color",{"gray",5}})==FRNL_OK);
+ assert(frnl_theme_define(&f.rt,"dark")==FRNL_DUPLICATE);
  assert(frnl_set_theme(&f.rt,"child","dark")==FRNL_OK);
  assert(frnl_visual_resolve(&f.rt,"child","color",&v)==FRNL_OK && strcmp(v.data,"gray")==0);
  assert(frnl_visual_put(&f.rt,(frnl_visual){FRNL_VISUAL_OVERRIDE,NULL,NULL,NULL,"child","color",{"red",4}})==FRNL_OK);
@@ -109,5 +157,6 @@ int main(void) {
  assert(frnl_lifecycle_transition(&f.rt,"child",FRNL_ACTIVE)==FRNL_BAD_TRANSITION);
  assert(count>4);
  frnl_cleanup(&f.rt); setup(&f); frnl_cleanup(&f.rt);
+ test_listener_removal_and_depth();
  puts("FrnlC semantic runtime PASS"); return 0;
 }

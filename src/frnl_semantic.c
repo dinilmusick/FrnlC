@@ -30,7 +30,7 @@ static frnl_status render(frnl_runtime *rt, frnl_render_kind kind, const frnl_co
 frnl_status frnl_init(frnl_runtime *rt, const frnl_storage *s) {
   if (!rt || !s || !s->max_depth ||
       (s->component_capacity && !s->components) || (s->state_capacity && !s->states) ||
-      (s->edge_capacity && !s->edges) || (s->visual_capacity && !s->visuals) ||
+      (s->edge_capacity && !s->edges) || (s->theme_capacity && !s->themes) || (s->visual_capacity && !s->visuals) ||
       (s->data_capacity && !s->data) || (s->event_capacity && !s->events) ||
       (s->function_capacity && !s->functions) ||
       (s->subscription_capacity && (!s->subscriptions || !s->subscription_scratch)) ||
@@ -162,19 +162,30 @@ frnl_status frnl_advance_phase(frnl_runtime *rt, const char *id) {
   if (c->phase==FRNL_RELEASE && c->pending_state) return commit_state(rt,c,c->pending_state);
   return report(rt,FRNL_BAD_TRANSITION,id,"advance_phase");
 }
+static int theme_exists(frnl_runtime *rt, const char *name) {
+  size_t i;
+  for (i=0;i<rt->themes;i++) if (same(rt->storage.themes[i].name,name)) return 1;
+  return 0;
+}
+frnl_status frnl_theme_define(frnl_runtime *rt, const char *name) {
+  if (!rt || !valid(name)) return report(rt,FRNL_INVALID,NULL,"theme_define");
+  if (theme_exists(rt,name)) return report(rt,FRNL_DUPLICATE,NULL,"theme_define");
+  if (rt->themes>=rt->storage.theme_capacity) return report(rt,FRNL_CAPACITY,NULL,"theme_define");
+  rt->storage.themes[rt->themes++]=(frnl_theme){name};
+  return FRNL_OK;
+}
 frnl_status frnl_set_theme(frnl_runtime *rt, const char *id, const char *theme) {
-  frnl_component *c=component(rt,id); size_t i;
+  frnl_component *c=component(rt,id);
   if (!c) return report(rt,FRNL_NOT_FOUND,id,"set_theme");
   if (!valid(theme)) return report(rt,FRNL_INVALID,id,"set_theme");
-  for (i=0;i<rt->visuals;i++) if (rt->storage.visuals[i].layer==FRNL_VISUAL_THEME && same(rt->storage.visuals[i].theme,theme)) break;
-  if (i==rt->visuals) return report(rt,FRNL_NOT_FOUND,id,"set_theme");
+  if (!theme_exists(rt,theme)) return report(rt,FRNL_NOT_FOUND,id,"set_theme");
   c->theme=theme; return render(rt,FRNL_RENDER_VISUAL,c);
 }
 frnl_status frnl_visual_put(frnl_runtime *rt, frnl_visual v) {
   size_t i;
   if (!rt || v.layer>FRNL_VISUAL_OVERRIDE || !valid(v.key) || (!v.value.data && v.value.size) ||
       (v.layer==FRNL_VISUAL_OVERRIDE ? !component(rt,v.component_id) : !valid(v.type) || !valid(v.state) || !state_spec(rt,v.type,v.state)) ||
-      (v.layer==FRNL_VISUAL_THEME && !valid(v.theme))) return report(rt,FRNL_INVALID,v.component_id,"visual_put");
+      (v.layer==FRNL_VISUAL_THEME && (!valid(v.theme) || !theme_exists(rt,v.theme)))) return report(rt,FRNL_INVALID,v.component_id,"visual_put");
   for (i=0;i<rt->visuals;i++) {
     frnl_visual *e=&rt->storage.visuals[i];
     if (e->layer==v.layer && same(e->key,v.key) &&
@@ -288,7 +299,8 @@ frnl_status frnl_emit(frnl_runtime *rt, const char *id, const char *event, const
     if (same(f->component_id,id) && same(f->function_id,mapping->function_id)) { handler=*f; break; }
   }
   if (!handler.action) return report(rt,FRNL_NOT_FOUND,id,"event_handler");
-  snapshot=rt->storage.subscription_scratch+rt->dispatch_depth*rt->storage.subscription_capacity;
+  snapshot=rt->storage.subscription_capacity ?
+    rt->storage.subscription_scratch+rt->dispatch_depth*rt->storage.subscription_capacity : NULL;
   for (i=0;i<rt->subscriptions;i++) {
     frnl_subscription s=rt->storage.subscriptions[i];
     if (same(s.component_id,id) && same(s.event,event)) snapshot[n++]=s;
@@ -312,7 +324,8 @@ frnl_status frnl_flow_run(frnl_runtime *rt, const char *flow_id, const void *inp
   frnl_flow_step *steps; size_t i,j,n=0;
   if (!rt || !valid(flow_id)) return report(rt,FRNL_INVALID,NULL,"flow_run");
   if (rt->flow_depth>=rt->storage.max_depth) return report(rt,FRNL_CAPACITY,NULL,"flow_depth");
-  steps=rt->storage.flow_scratch+rt->flow_depth*rt->storage.flow_capacity;
+  steps=rt->storage.flow_capacity ?
+    rt->storage.flow_scratch+rt->flow_depth*rt->storage.flow_capacity : NULL;
   for (i=0;i<rt->flows;i++) if (same(rt->storage.flows[i].flow_id,flow_id)) steps[n++]=rt->storage.flows[i];
   if (!n) return report(rt,FRNL_NOT_FOUND,NULL,"flow_run");
   for (i=1;i<n;i++) {

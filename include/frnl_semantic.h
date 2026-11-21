@@ -27,6 +27,8 @@ typedef struct {
   frnl_phase phase;
 } frnl_component;
 typedef struct { const char *type, *name; unsigned has_attack, has_release; } frnl_state_spec;
+/* Themes are explicit identities; a theme may have no visual overrides. */
+typedef struct { const char *name; } frnl_theme;
 typedef struct { const char *type, *from, *to; } frnl_state_edge;
 typedef struct {
   frnl_visual_layer layer;
@@ -47,20 +49,22 @@ typedef struct {
   frnl_component *components; size_t component_capacity;
   frnl_state_spec *states; size_t state_capacity;
   frnl_state_edge *edges; size_t edge_capacity;
+  frnl_theme *themes; size_t theme_capacity;
   frnl_visual *visuals; size_t visual_capacity;
   frnl_data *data; size_t data_capacity;
   frnl_event_def *events; size_t event_capacity;
   frnl_function *functions; size_t function_capacity;
   frnl_subscription *subscriptions; size_t subscription_capacity;
   frnl_flow_step *flows; size_t flow_capacity;
-  /* Separate caller-owned snapshots: at least capacity * max_depth entries. */
+  /* Separate caller-owned snapshots: at least capacity * max_depth entries.
+   These buffers must not alias registry storage. Do not call cleanup/init from a callback. */
   frnl_subscription *subscription_scratch;
   frnl_flow_step *flow_scratch;
   size_t max_depth;
 } frnl_storage;
 typedef struct {
   frnl_storage storage;
-  size_t components, states, edges, visuals, data_count, events, functions, subscriptions, flows;
+  size_t components, states, edges, themes, visuals, data_count, events, functions, subscriptions, flows;
   size_t dispatch_depth, flow_depth;
   uint64_t next_token;
   frnl_diagnostic last;
@@ -77,6 +81,7 @@ frnl_status frnl_check_path(frnl_runtime *rt, const char *const *path, size_t le
 frnl_status frnl_lifecycle_transition(frnl_runtime *rt, const char *id, frnl_lifecycle to);
 frnl_status frnl_set_state(frnl_runtime *rt, const char *id, const char *state);
 frnl_status frnl_advance_phase(frnl_runtime *rt, const char *id);
+frnl_status frnl_theme_define(frnl_runtime *rt, const char *name);
 frnl_status frnl_set_theme(frnl_runtime *rt, const char *id, const char *theme);
 frnl_status frnl_visual_put(frnl_runtime *rt, frnl_visual visual);
 frnl_status frnl_visual_resolve(frnl_runtime *rt, const char *id, const char *key, frnl_value *out);
