@@ -2,10 +2,16 @@ cmake_minimum_required(VERSION 3.16)
 project(FrnlC LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
 add_library(frnl_event_dispatch STATIC src/frnl_event_dispatch.c)
 target_include_directories(frnl_event_dispatch PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_library(frnl_scope STATIC src/frnl_scope.c)
+target_include_directories(frnl_scope PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 include(CTest)
 if(BUILD_TESTING)
+  add_executable(frnl_scope_test tests/scope_test.c)
+  target_link_libraries(frnl_scope_test PRIVATE frnl_scope)
+  add_test(NAME frnl_scope_test COMMAND frnl_scope_test)
   add_executable(frnl_event_dispatch_test tests/test_event_dispatch.c)
   target_link_libraries(frnl_event_dispatch_test PRIVATE frnl_event_dispatch)
   add_test(NAME frnl_event_dispatch COMMAND frnl_event_dispatch_test)
@@ -30,6 +36,7 @@ if(BUILD_TESTING)
   # Release builds define NDEBUG, which otherwise turns assert()-based tests
   # into no-ops. Keep assertions enabled in every CTest executable.
   foreach(test_target IN ITEMS
+      frnl_scope_test
       frnl_event_dispatch_test
       frnl_multi_event_dispatch_test
       frnl_nested_failure_recovery_test
@@ -44,3 +51,6 @@ if(BUILD_TESTING)
     endif()
   endforeach()
 endif()
+
+install(TARGETS frnl_scope frnl_event_dispatch ARCHIVE DESTINATION lib)
+install(DIRECTORY include/ DESTINATION include)
