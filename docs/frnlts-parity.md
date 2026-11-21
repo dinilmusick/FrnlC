@@ -22,7 +22,7 @@ FrnlTS authority: `dinilmusick/FrnlTS@a9339b9e92f9ef375ac164e274842644dca60d8a`.
 | `store.ts` reset overrides on state change | `clear_override` in state commit | Supported |
 | `presentation.ts` host-facing presentation metadata | `frnl_renderer` callback | Partial: host owns actual renderer and accessibility realization |
 | `validation.ts` general rich schemas | argument/status validation, bounded registry checks | Partial; no Zod/JSON Schema engine |
-| `semantic-input.ts` semantic field resolution | `frnl_bind_input`, `frnl_resolve_input` | Host interface; without bound resolver reports `FRNL_UNSUPPORTED` |
+| `semantic-input.ts` semantic field resolution | `frnl_bind_input`, `frnl_resolve_input` | Host interface; optional real pinned GutC deterministic adapter; without bound resolver reports `FRNL_UNSUPPORTED` |
 | `semantic-input.ts` asynchronous model ranking/completion | optional GutC-backed or host callback adapter | Not implemented natively; requires actual host integration |
 | `semantic-input.ts` form JSON Schema compilation | host-provided contract string/validator | Not implemented; no automatic form JSON schema generator |
 | `orchestration.ts` Promise event listeners | synchronous C listeners only | Not applicable to deterministic embedded profile |

@@ -14,6 +14,18 @@ foreach(lib IN ITEMS frnl_scope frnl_event_dispatch frnl_semantic)
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 endforeach()
 
+option(FRNLC_WITH_GUTC "Build optional pinned-GutC-compatible semantic adapter" OFF)
+if(FRNLC_WITH_GUTC)
+  find_package(GutC CONFIG REQUIRED)
+  add_library(frnl_gutc_adapter STATIC src/frnl_gutc_adapter.c)
+  target_compile_features(frnl_gutc_adapter PUBLIC c_std_11)
+  set_target_properties(frnl_gutc_adapter PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED YES C_EXTENSIONS NO)
+  target_include_directories(frnl_gutc_adapter PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+  target_link_libraries(frnl_gutc_adapter PUBLIC frnl_semantic GutC::gutc)
+endif()
+
 include(CTest)
 if(BUILD_TESTING)
   function(frnl_test target file linked)
@@ -41,9 +53,16 @@ if(BUILD_TESTING)
   frnl_test(frnl_ui_action_gate_test tests/test_ui_action_gate.c "")
   frnl_test(frnl_ui_action_executor_test tests/test_ui_action_executor.c "")
   frnl_test(frnl_semantic_test tests/test_frnl_semantic.c frnl_semantic)
+  if(FRNLC_WITH_GUTC)
+    frnl_test(frnl_gutc_adapter_test tests/test_frnl_gutc_adapter.c frnl_gutc_adapter)
+  endif()
 endif()
 
-install(TARGETS frnl_scope frnl_event_dispatch frnl_semantic EXPORT FrnlCTargets
+set(frnl_install_targets frnl_scope frnl_event_dispatch frnl_semantic)
+if(FRNLC_WITH_GUTC)
+  list(APPEND frnl_install_targets frnl_gutc_adapter)
+endif()
+install(TARGETS ${frnl_install_targets} EXPORT FrnlCTargets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
