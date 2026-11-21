@@ -264,7 +264,7 @@ frnl_status frnl_function_add(frnl_runtime *rt, frnl_function v) {
   if (rt->functions>=rt->storage.function_capacity) return report(rt,FRNL_CAPACITY,v.component_id,"function_add");
   rt->storage.functions[rt->functions++]=v; return FRNL_OK;
 }
-frnl_status frnl_subscribe(frnl_runtime *rt, const char *id, const char *event, frnl_event_listener cb, void *context, uint64_t *token) {
+frnl_status frnl_subscribe(frnl_runtime *rt, const char *id, const char *event, frnl_semantic_listener cb, void *context, uint64_t *token) {
   frnl_subscription s;
   if (!rt || !component(rt,id) || !valid(event) || !cb || !token || rt->next_token==UINT64_MAX)
     return report(rt,FRNL_INVALID,id,"subscribe");
