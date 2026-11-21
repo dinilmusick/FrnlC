@@ -1,0 +1,76 @@
+name: Native C11
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  build-test-consumer:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-latest, cc: gcc, config: Debug}
+          - {os: ubuntu-latest, cc: gcc, config: Release}
+          - {os: ubuntu-latest, cc: clang, config: Release}
+          - {os: macos-latest, cc: clang, config: Release}
+          - {os: windows-latest, cc: msvc, config: Release}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        shell: bash
+        run: |
+          if [[ '${{ matrix.cc }}' != 'msvc' ]]; then
+            export CC='${{ matrix.cc }}'
+            cmake -S . -B build -DCMAKE_BUILD_TYPE='${{ matrix.config }}' -DCMAKE_C_FLAGS='-Wall -Wextra -Werror -pedantic'
+          else
+            cmake -S . -B build -DCMAKE_BUILD_TYPE='${{ matrix.config }}'
+          fi
+      - name: Build and CTest
+        shell: bash
+        run: |
+          cmake --build build --config '${{ matrix.config }}'
+          ctest --test-dir build -C '${{ matrix.config }}' --output-on-failure
+      - name: Install and test external consumer
+        shell: bash
+        run: |
+          cmake --install build --config '${{ matrix.config }}' --prefix "$PWD/stage"
+          cmake -S examples/consumer -B consumer-build -DCMAKE_PREFIX_PATH="$PWD/stage"
+          cmake --build consumer-build --config '${{ matrix.config }}'
+          ctest --test-dir consumer-build -C '${{ matrix.config }}' --output-on-failure
+  sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: AddressSanitizer and UndefinedBehaviorSanitizer
+        run: |
+          cmake -S . -B build-san -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS='-std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -fno-omit-frame-pointer' \
+            -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined'
+          cmake --build build-san
+          ctest --test-dir build-san --output-on-failure
+
+  gutc-pinned-adapter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout pinned public GutC foundation
+        uses: actions/checkout@v4
+        with:
+          repository: dinilmusick/GutC
+          ref: 0e26ac721c7a020078cfaf52e6fce259fe03301e
+          path: pinned-GutC
+      - name: Build and install pinned GutC
+        run: |
+          cmake -S pinned-GutC -B gutc-build -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
+          cmake --build gutc-build
+          cmake --install gutc-build --prefix "$PWD/gutc-stage"
+      - name: Build, CTest, install and externally consume FrnlC with GutC
+        run: |
+          cmake -S . -B frnlc-gutc-build -DBUILD_TESTING=ON -DFRNLC_WITH_GUTC=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$PWD/gutc-stage" -DCMAKE_C_FLAGS='-Wall -Wextra -Werror -pedantic'
+          cmake --build frnlc-gutc-build
+          ctest --test-dir frnlc-gutc-build --output-on-failure
+          cmake --install frnlc-gutc-build --prefix "$PWD/frnl-stage"
+          cmake -S examples/consumer -B consumer-gutc -DCMAKE_PREFIX_PATH="$PWD/frnl-stage;$PWD/gutc-stage"
+          cmake --build consumer-gutc
+          ctest --test-dir consumer-gutc --output-on-failure
