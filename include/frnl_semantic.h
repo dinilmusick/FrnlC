@@ -39,8 +39,8 @@ typedef struct { frnl_data_scope scope; const char *owner, *key; frnl_value valu
 typedef struct { const char *component_id, *state, *event, *function_id; } frnl_event_def;
 typedef frnl_status (*frnl_action)(void *context, const void *input);
 typedef struct { const char *component_id, *function_id; frnl_action action; void *context; } frnl_function;
-typedef frnl_status (*frnl_event_listener)(void *context, const char *component_id, const char *event, const void *payload);
-typedef struct { uint64_t token; const char *component_id, *event; frnl_event_listener listener; void *context; } frnl_subscription;
+typedef frnl_status (*frnl_semantic_listener)(void *context, const char *component_id, const char *event, const void *payload);
+typedef struct { uint64_t token; const char *component_id, *event; frnl_semantic_listener listener; void *context; } frnl_subscription;
 typedef struct { const char *flow_id; unsigned order; frnl_action action; void *context; } frnl_flow_step;
 typedef struct { frnl_status status; const char *component_id, *operation; } frnl_diagnostic;
 typedef frnl_status (*frnl_renderer)(void *context, frnl_render_kind kind, const frnl_component *component);
@@ -90,7 +90,7 @@ frnl_status frnl_data_get(frnl_runtime *rt, frnl_data_scope scope, const char *o
 void frnl_bind_renderer(frnl_runtime *rt, frnl_renderer callback, void *context);
 frnl_status frnl_event_define(frnl_runtime *rt, frnl_event_def event);
 frnl_status frnl_function_add(frnl_runtime *rt, frnl_function function);
-frnl_status frnl_subscribe(frnl_runtime *rt, const char *id, const char *event, frnl_event_listener callback, void *context, uint64_t *token);
+frnl_status frnl_subscribe(frnl_runtime *rt, const char *id, const char *event, frnl_semantic_listener callback, void *context, uint64_t *token);
 frnl_status frnl_unsubscribe(frnl_runtime *rt, uint64_t token);
 frnl_status frnl_emit(frnl_runtime *rt, const char *id, const char *event, const void *payload);
 frnl_status frnl_flow_add(frnl_runtime *rt, frnl_flow_step step);
