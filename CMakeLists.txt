@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-project(FrnlC VERSION 0.2.0 LANGUAGES C)
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/version.txt" ULTRST_RELEASE_VERSION LIMIT_COUNT 1)
+project(FrnlC VERSION ${ULTRST_RELEASE_VERSION} LANGUAGES C)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
